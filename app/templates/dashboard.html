@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — UniOps{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Tableau de bord</h1>
+            <p class="page-subtitle">Vue d'ensemble des conteneurs surveillés en temps réel.</p>
+        </div>
+        <div class="live-indicator">
+            <span class="live-dot"></span>
+            <span>Live</span>
+        </div>
+    </div>
+
+    <div class="cards-grid"
+         hx-get="/fragments/cards"
+         hx-trigger="every 5s"
+         hx-swap="innerHTML">
+        {% include "_cards_fragment.html" %}
+    </div>
+{% endblock %}
