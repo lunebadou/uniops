@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}{{ container.container_name }} — UniOps{% endblock %}
+
+{% block content %}
+    <div class="breadcrumb">
+        <a href="/">Dashboard</a>
+        <span class="breadcrumb-sep">›</span>
+        <span>{{ container.container_name }}</span>
+    </div>
+
+    <div class="page-header">
+        <div>
+            <h1>{{ container.container_name }}</h1>
+            <p class="page-subtitle">
+                <span class="status-badge status-{{ container.status }}">{{ container.status }}</span>
+            </p>
+        </div>
+        <div class="live-indicator">
+            <span class="live-dot"></span>
+            <span>Live</span>
+        </div>
+    </div>
+
+    <div class="detail-grid">
+        <div class="stat-block">
+            <div class="stat-label">CPU</div>
+            <div class="stat-value">{{ "%.2f"|format(container.cpu_percent) }} <span class="unit">%</span></div>
+        </div>
+        <div class="stat-block">
+            <div class="stat-label">Mémoire utilisée</div>
+            <div class="stat-value">{{ "%.1f"|format(container.memory_mb) }} <span class="unit">MB</span></div>
+        </div>
+        <div class="stat-block">
+            <div class="stat-label">Mémoire allouée</div>
+            <div class="stat-value">{{ "%.0f"|format(container.memory_limit_mb) }} <span class="unit">MB</span></div>
+        </div>
+        <div class="stat-block">
+            <div class="stat-label">Points collectés (60 min)</div>
+            <div class="stat-value">{{ history_count }}</div>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-card">
+            <h3 class="chart-title">CPU sur 60 minutes</h3>
+            <canvas id="cpuChart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3 class="chart-title">Mémoire sur 60 minutes</h3>
+            <canvas id="memChart"></canvas>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script>
+        const containerName = "{{ container.container_name }}";
+
+        // Couleurs cohérentes avec le theme UniOps
+        const colors = {
+            cpu: "#58a6ff",
+            cpuFill: "rgba(88, 166, 255, 0.1)",
+            mem: "#3fb950",
+            memFill: "rgba(63, 185, 80, 0.1)",
+            grid: "#21262d",
+            text: "#8b949e",
+        };
+
+        // Configuration commune des graphiques
+        function makeChart(canvasId, label, color, fillColor) {
+            const ctx = document.getElementById(canvasId).getContext("2d");
+            return new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: label,
+                        data: [],
+                        borderColor: color,
+                        backgroundColor: fillColor,
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: "#161b22",
+                            borderColor: "#30363d",
+                            borderWidth: 1,
+                            titleColor: "#f0f6fc",
+                            bodyColor: "#e6edf3",
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: colors.grid },
+                            ticks: { color: colors.text, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }
+                        },
+                        y: {
+                            grid: { color: colors.grid },
+                            ticks: { color: colors.text },
+                            beginAtZero: true,
+                        }
+                    }
+                }
+            });
+        }
+
+        const cpuChart = makeChart("cpuChart", "CPU %", colors.cpu, colors.cpuFill);
+        const memChart = makeChart("memChart", "Mémoire MB", colors.mem, colors.memFill);
+
+        async function refreshCharts() {
+            try {
+                const response = await fetch(`/monitoring/containers/${containerName}/history?minutes=60`);
+                const history = await response.json();
+
+                const labels = history.map(h => {
+                    const d = new Date(h.collected_at);
+                    return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                });
+
+                cpuChart.data.labels = labels;
+                cpuChart.data.datasets[0].data = history.map(h => h.cpu_percent);
+                cpuChart.update();
+
+                memChart.data.labels = labels;
+                memChart.data.datasets[0].data = history.map(h => h.memory_mb);
+                memChart.update();
+            } catch (e) {
+                console.error("Erreur lors du chargement de l'historique :", e);
+            }
+        }
+
+        // Premier chargement immédiat
+        refreshCharts();
+
+        // Auto-refresh toutes les 30 secondes (aligné avec le scheduler de collecte)
+        setInterval(refreshCharts, 30000);
+    </script>
+{% endblock %}

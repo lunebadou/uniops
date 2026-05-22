@@ -1,18 +1,20 @@
 {% for c in containers %}
-<div class="card">
-    <div class="card-header">
-        <span class="card-title">{{ c.container_name }}</span>
-        <span class="status-badge status-{{ c.status }}">{{ c.status }}</span>
-    </div>
-    <div class="card-body">
-        <div class="metric">
-            <span class="metric-label">CPU</span>
-            <span class="metric-value">{{ "%.2f"|format(c.cpu_percent) }} %</span>
+<a href="/containers/{{ c.container_name }}" class="card-link">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">{{ c.container_name }}</span>
+            <span class="status-badge status-{{ c.status }}">{{ c.status }}</span>
         </div>
-        <div class="metric">
-            <span class="metric-label">Mémoire</span>
-            <span class="metric-value">{{ "%.1f"|format(c.memory_mb) }} MB</span>
+        <div class="card-body">
+            <div class="metric">
+                <span class="metric-label">CPU</span>
+                <span class="metric-value">{{ "%.2f"|format(c.cpu_percent) }} %</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Mémoire</span>
+                <span class="metric-value">{{ "%.1f"|format(c.memory_mb) }} MB</span>
+            </div>
         </div>
     </div>
-</div>
+</a>
 {% endfor %}
