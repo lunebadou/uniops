@@ -333,3 +333,244 @@ h1 {
 .placeholder-block {
     display: none;
 }
+
+/* ====== Cloche header ====== */
+.user-zone {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.bell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    padding: 6px 10px;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+
+.bell:hover {
+    background: #21262d;
+}
+
+.bell-icon {
+    font-size: 1.2rem;
+}
+
+.bell-count {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: #f85149;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+    line-height: 1;
+}
+
+/* ====== Filtres onglets ====== */
+.filters {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid #30363d;
+}
+
+.filter-tab {
+    padding: 10px 16px;
+    color: #8b949e;
+    text-decoration: none;
+    font-size: 0.9rem;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -1px;
+}
+
+.filter-tab:hover {
+    color: #f0f6fc;
+}
+
+.filter-tab.active {
+    color: #58a6ff;
+    border-bottom-color: #58a6ff;
+}
+
+/* ====== Grille anomalies ====== */
+.anomalies-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 18px;
+}
+
+.anomaly-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-left: 4px solid #8b949e;
+    border-radius: 8px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.anomaly-card.severity-info { border-left-color: #58a6ff; }
+.anomaly-card.severity-warning { border-left-color: #f59e0b; }
+.anomaly-card.severity-critical { border-left-color: #f85149; }
+
+.anomaly-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.anomaly-type {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #f0f6fc;
+    font-size: 0.95rem;
+}
+
+.anomaly-icon {
+    font-size: 1.1rem;
+}
+
+.severity-badge {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.severity-badge-info {
+    background: rgba(88, 166, 255, 0.15);
+    color: #58a6ff;
+    border: 1px solid rgba(88, 166, 255, 0.4);
+}
+
+.severity-badge-warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.severity-badge-critical {
+    background: rgba(248, 81, 73, 0.15);
+    color: #f85149;
+    border: 1px solid rgba(248, 81, 73, 0.4);
+}
+
+.anomaly-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.anomaly-container {
+    color: #58a6ff;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.9rem;
+    word-break: break-word;
+}
+
+.anomaly-metric {
+    color: #f0f6fc;
+    font-size: 0.95rem;
+}
+
+.anomaly-metric .muted {
+    color: #8b949e;
+    font-size: 0.85rem;
+}
+
+.anomaly-meta {
+    color: #8b949e;
+    font-size: 0.82rem;
+}
+
+.anomaly-ai {
+    margin-top: 8px;
+    background: rgba(88, 166, 255, 0.05);
+    border: 1px solid rgba(88, 166, 255, 0.2);
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.anomaly-ai-label {
+    color: #58a6ff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.anomaly-ai-text {
+    color: #e6edf3;
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.anomaly-card-footer {
+    border-top: 1px solid #21262d;
+    padding-top: 12px;
+}
+
+.btn-resolve {
+    background: transparent;
+    color: #58a6ff;
+    border: 1px solid #30363d;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-resolve:hover {
+    background: rgba(88, 166, 255, 0.08);
+    border-color: #58a6ff;
+}
+
+.resolved-badge {
+    color: #3fb950;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* ====== Empty state agrandi (page Anomalies) ====== */
+.empty-state-large {
+    background: #161b22;
+    border: 1px dashed #30363d;
+    border-radius: 12px;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    color: #3fb950;
+    margin-bottom: 12px;
+}
+
+.empty-title {
+    color: #f0f6fc;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.empty-desc {
+    color: #8b949e;
+    font-size: 0.9rem;
+}

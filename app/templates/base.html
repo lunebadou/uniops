@@ -17,9 +17,18 @@
         <nav class="nav">
             <a href="/">Dashboard</a>
             <a href="/applications">Applications</a>
+            <a href="/anomalies">Anomalies</a>
             <a href="/monitoring">Monitoring</a>
         </nav>
         <div class="user-zone">
+            <a href="/anomalies"
+               class="bell"
+               hx-get="/fragments/anomaly-bell"
+               hx-trigger="load, every 10s"
+               hx-swap="innerHTML"
+               title="Anomalies en cours">
+                {% include "_bell_fragment.html" %}
+            </a>
             <span class="user-badge">admin</span>
         </div>
     </header>

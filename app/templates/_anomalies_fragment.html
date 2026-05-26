@@ -1,0 +1,71 @@
+{% if anomalies %}
+<div class="anomalies-grid">
+    {% for a in anomalies %}
+    <div class="anomaly-card severity-{{ a.severity }}">
+        <div class="anomaly-card-header">
+            <div class="anomaly-type">
+                {% if a.type == 'cpu_high' %}
+                    <span class="anomaly-icon">⚡</span>
+                    <span>CPU élevé</span>
+                {% elif a.type == 'memory_high' %}
+                    <span class="anomaly-icon">💾</span>
+                    <span>Mémoire élevée</span>
+                {% elif a.type == 'container_stopped' %}
+                    <span class="anomaly-icon">⛔</span>
+                    <span>Conteneur arrêté</span>
+                {% endif %}
+            </div>
+            <span class="severity-badge severity-badge-{{ a.severity }}">{{ a.severity }}</span>
+        </div>
+
+        <div class="anomaly-card-body">
+            <div class="anomaly-container">{{ a.container_name }}</div>
+
+            {% if a.observed_value is not none and a.threshold_value is not none %}
+            <div class="anomaly-metric">
+                Observé : <strong>{{ "%.1f"|format(a.observed_value) }}</strong>
+                <span class="muted">/ seuil {{ "%.1f"|format(a.threshold_value) }}</span>
+            </div>
+            {% endif %}
+
+            {% if a.duration_points %}
+            <div class="anomaly-meta">
+                {{ a.duration_points }} mesures consécutives au-delà du seuil
+            </div>
+            {% endif %}
+
+            <div class="anomaly-meta">
+                Détecté le {{ a.detected_at_fmt }}
+            </div>
+
+            {% if a.ai_analysis %}
+            <div class="anomaly-ai">
+                <div class="anomaly-ai-label">💡 Analyse IA</div>
+                <div class="anomaly-ai-text">{{ a.ai_analysis }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="anomaly-card-footer">
+            {% if a.resolved %}
+            <span class="resolved-badge">✓ Résolue le {{ a.resolved_at_fmt }}</span>
+            {% else %}
+            <button class="btn-resolve"
+                    hx-post="/anomalies/{{ a.id }}/resolve"
+                    hx-target="#anomalies-list"
+                    hx-swap="innerHTML"
+                    hx-on::after-request="htmx.trigger('#anomalies-list', 'every-10s-refresh')">
+                Marquer comme résolue
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state-large">
+    <div class="empty-icon">✓</div>
+    <div class="empty-title">Aucune anomalie</div>
+    <div class="empty-desc">Tous les conteneurs sont dans des plages normales.</div>
+</div>
+{% endif %}

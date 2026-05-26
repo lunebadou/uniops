@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Anomalies — UniOps{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Anomalies détectées</h1>
+            <p class="page-subtitle">
+                Événements anormaux remontés automatiquement par le moteur de détection.
+            </p>
+        </div>
+        <div class="live-indicator">
+            <span class="live-dot"></span>
+            <span>Live</span>
+        </div>
+    </div>
+
+    <div class="filters">
+        <a href="/anomalies" class="filter-tab {% if not only_unresolved %}active{% endif %}">
+            Toutes
+        </a>
+        <a href="/anomalies?only_unresolved=true" class="filter-tab {% if only_unresolved %}active{% endif %}">
+            En cours uniquement
+        </a>
+    </div>
+
+    <div id="anomalies-list"
+         hx-get="/fragments/anomalies?only_unresolved={{ 'true' if only_unresolved else 'false' }}"
+         hx-trigger="every 10s"
+         hx-swap="innerHTML">
+        {% include "_anomalies_fragment.html" %}
+    </div>
+{% endblock %}
