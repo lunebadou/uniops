@@ -3,8 +3,8 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.database import Base, engine
-from app.models import Application, Environment, Metric, Anomaly  # noqa: F401
-from app.routers import applications, monitoring, web, anomalies
+from app.models import Application, Environment, Metric, Anomaly, PipelineRun, PipelineStep  # noqa: F401
+from app.routers import applications, monitoring, web, anomalies, pipelines
 from app.core.scheduler import start_scheduler, stop_scheduler
 
 Base.metadata.create_all(bind=engine)
@@ -25,6 +25,7 @@ app.include_router(web.router)
 app.include_router(applications.router)
 app.include_router(monitoring.router)
 app.include_router(anomalies.router)
+app.include_router(pipelines.router)
 
 
 @app.get("/health")

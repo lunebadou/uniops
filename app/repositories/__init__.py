@@ -1,1 +1,1 @@
-from app.repositories import application_repository, metric_repository, anomaly_repository
+from app.repositories import application_repository, metric_repository, anomaly_repository, pipeline_repository

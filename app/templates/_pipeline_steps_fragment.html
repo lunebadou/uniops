@@ -1,0 +1,21 @@
+{% if steps %}
+<div class="steps-list">
+    {% for s in steps %}
+    <div class="step-card step-{{ s.status }}">
+        <div class="step-number">{{ s.order }}</div>
+        <div class="step-content">
+            <div class="step-name">{{ s.name }}</div>
+            <div class="step-status status-badge-{{ s.status }}">{{ s.status }}</div>
+            {% if s.output %}
+            <pre class="step-output">{{ s.output }}</pre>
+            {% endif %}
+            {% if s.error_message %}
+            <div class="step-error">{{ s.error_message }}</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state-small">Aucune étape n'a encore été enregistrée pour ce pipeline.</div>
+{% endif %}

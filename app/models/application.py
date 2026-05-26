@@ -90,3 +90,62 @@ class Anomaly(Base):
     detected_at = Column(DateTime, default=datetime.utcnow, index=True)
     resolved = Column(Boolean, default=False)
     resolved_at = Column(DateTime, nullable=True)
+
+class PipelineStatus(str, enum.Enum):
+    pending = "pending"
+    running = "running"
+    success = "success"
+    failed = "failed"
+    awaiting_validation = "awaiting_validation"
+    rejected = "rejected"
+
+
+class PipelineRun(Base):
+    __tablename__ = "pipeline_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Cible du déploiement
+    application_name = Column(String, nullable=False, index=True)   # ex: "supply-chain-app"
+    git_repo = Column(String, nullable=False)                       # ex: "lunebadou/supply-chain-app"
+    git_branch = Column(String, nullable=False, default="main")
+    environment = Column(String, nullable=False)                    # "recette" ou "production"
+
+    # État global
+    status = Column(Enum(PipelineStatus), nullable=False, default=PipelineStatus.pending)
+
+    # Analyse IA (rempli plus tard en étape 4)
+    ai_risk_level = Column(String, nullable=True)                   # "low", "medium", "high"
+    ai_summary = Column(Text, nullable=True)                        # résumé IA du diff
+    ai_validated = Column(Boolean, default=False)                   # IA a-t-elle approuvé ?
+
+    # Validation humaine (rempli plus tard si environnement = production)
+    human_validated = Column(Boolean, default=False)
+    human_validated_by = Column(String, nullable=True)              # "admin" pour l'instant
+
+    # Cycle de vie
+    started_at = Column(DateTime, default=datetime.utcnow, index=True)
+    finished_at = Column(DateTime, nullable=True)
+
+    # Relation avec les étapes
+    steps = relationship("PipelineStep", back_populates="run", cascade="all, delete-orphan", order_by="PipelineStep.order")
+
+
+class PipelineStep(Base):
+    __tablename__ = "pipeline_steps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(Integer, ForeignKey("pipeline_runs.id"), nullable=False, index=True)
+
+    name = Column(String, nullable=False)              # ex: "Clone Git", "Analyse Ruff", "Build Docker"
+    order = Column(Integer, nullable=False)            # position dans le pipeline (1, 2, 3...)
+    status = Column(Enum(PipelineStatus), nullable=False, default=PipelineStatus.pending)
+
+    # Sortie de l'étape (stdout/stderr, rapports JSON, etc.)
+    output = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+
+    run = relationship("PipelineRun", back_populates="steps")

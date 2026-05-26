@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Pipeline #{{ pipeline.id }} — UniOps{% endblock %}
+
+{% block content %}
+    <div class="breadcrumb">
+        <a href="/pipelines">← Pipelines</a>
+    </div>
+
+    <div class="page-header">
+        <div>
+            <h1>Pipeline #{{ pipeline.id }}</h1>
+            <p class="page-subtitle">{{ pipeline.application_name }} → {{ pipeline.environment }}</p>
+        </div>
+        <span class="status-badge status-badge-{{ pipeline.status }}">{{ pipeline.status_label }}</span>
+    </div>
+
+    <div class="pipeline-detail-grid">
+        <!-- Bloc info -->
+        <div class="detail-block">
+            <div class="detail-block-title">Configuration</div>
+            <div class="detail-row"><span class="muted">Application</span><span>{{ pipeline.application_name }}</span></div>
+            <div class="detail-row"><span class="muted">Repo</span><span class="mono">{{ pipeline.git_repo }}</span></div>
+            <div class="detail-row"><span class="muted">Branche</span><span class="mono">{{ pipeline.git_branch }}</span></div>
+            <div class="detail-row"><span class="muted">Environnement</span><span class="env-badge env-{{ pipeline.environment }}">{{ pipeline.environment }}</span></div>
+            <div class="detail-row"><span class="muted">Démarré</span><span>{{ pipeline.started_at_fmt }}</span></div>
+            {% if pipeline.finished_at_fmt %}
+            <div class="detail-row"><span class="muted">Terminé</span><span>{{ pipeline.finished_at_fmt }}</span></div>
+            {% endif %}
+        </div>
+
+        <!-- Bloc analyse IA -->
+        <div class="detail-block">
+            <div class="detail-block-title">Analyse IA</div>
+            {% if pipeline.ai_summary %}
+            <div class="detail-row"><span class="muted">Niveau de risque</span><span class="risk-badge risk-{{ pipeline.ai_risk_level }}">{{ pipeline.ai_risk_level }}</span></div>
+            <div class="ai-summary">{{ pipeline.ai_summary }}</div>
+            {% else %}
+            <div class="empty-state-small">L'analyse IA n'a pas encore été produite pour ce pipeline.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Étapes -->
+    <h2 class="section-title">Étapes du pipeline</h2>
+
+    <div id="pipeline-steps-block"
+         hx-get="/pipelines/{{ pipeline.id }}/steps-fragment"
+         hx-trigger="every 3s"
+         hx-swap="innerHTML">
+
+    {% if pipeline.steps %}
+    <div class="steps-list">
+        {% for s in pipeline.steps %}
+        <div class="step-card step-{{ s.status }}">
+            <div class="step-number">{{ s.order }}</div>
+            <div class="step-content">
+                <div class="step-name">{{ s.name }}</div>
+                <div class="step-status status-badge-{{ s.status }}">{{ s.status }}</div>
+                {% if s.output %}
+                <pre class="step-output">{{ s.output }}</pre>
+                {% endif %}
+                {% if s.error_message %}
+                <div class="step-error">{{ s.error_message }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state-small">Aucune étape n'a encore été enregistrée pour ce pipeline.</div>
+    {% endif %}
+
+    </div>
+    
+{% endblock %}

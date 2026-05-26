@@ -1,0 +1,1 @@
+from app.clients import docker_client, smtp_client, git_client

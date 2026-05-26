@@ -134,3 +134,103 @@ def anomaly_bell_fragment(request: Request, db: Session = Depends(get_db)):
         "_bell_fragment.html",
         {"open_anomalies": anomaly_repository.count_unresolved(db)},
     )
+
+from app.repositories import pipeline_repository
+
+_STATUS_LABELS = {
+    "pending": "En attente",
+    "running": "En cours",
+    "success": "Succès",
+    "failed": "Échec",
+    "awaiting_validation": "Validation requise",
+    "rejected": "Refusé",
+}
+
+
+def _serialize_pipeline(p) -> dict:
+    return {
+        "id": p.id,
+        "application_name": p.application_name,
+        "git_repo": p.git_repo,
+        "git_branch": p.git_branch,
+        "environment": p.environment,
+        "status": p.status.value,
+        "status_label": _STATUS_LABELS.get(p.status.value, p.status.value),
+        "ai_risk_level": p.ai_risk_level,
+        "ai_summary": p.ai_summary,
+        "ai_validated": p.ai_validated,
+        "human_validated": p.human_validated,
+        "started_at_fmt": p.started_at.strftime("%d/%m/%Y %H:%M:%S") if p.started_at else None,
+        "finished_at_fmt": p.finished_at.strftime("%d/%m/%Y %H:%M:%S") if p.finished_at else None,
+        "steps": [
+            {
+                "id": s.id,
+                "name": s.name,
+                "order": s.order,
+                "status": s.status.value,
+                "error_message": s.error_message,
+            }
+            for s in p.steps
+        ],
+    }
+
+
+# ───── Page Pipelines ─────
+@router.get("/pipelines")
+def pipelines_page(request: Request, db: Session = Depends(get_db)):
+    runs = pipeline_repository.list_runs(db)
+    return templates.TemplateResponse(
+        request,
+        "pipelines.html",
+        {
+            "pipelines": [_serialize_pipeline(r) for r in runs],
+            "open_anomalies": anomaly_repository.count_unresolved(db),
+        },
+    )
+
+
+@router.get("/fragments/pipelines")
+def pipelines_fragment(request: Request, db: Session = Depends(get_db)):
+    runs = pipeline_repository.list_runs(db)
+    return templates.TemplateResponse(
+        request,
+        "_pipelines_fragment.html",
+        {"pipelines": [_serialize_pipeline(r) for r in runs]},
+    )
+
+
+@router.get("/pipelines/{run_id}")
+def pipeline_detail_page(run_id: int, request: Request, db: Session = Depends(get_db)):
+    run = pipeline_repository.get_run(db, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Pipeline introuvable")
+    return templates.TemplateResponse(
+        request,
+        "pipeline_detail.html",
+        {
+            "pipeline": _serialize_pipeline(run),
+            "open_anomalies": anomaly_repository.count_unresolved(db),
+        },
+    )
+
+@router.get("/pipelines/{run_id}/steps-fragment")
+def pipeline_steps_fragment(run_id: int, request: Request, db: Session = Depends(get_db)):
+    run = pipeline_repository.get_run(db, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Pipeline introuvable")
+    steps = [
+        {
+            "id": s.id,
+            "name": s.name,
+            "order": s.order,
+            "status": s.status.value,
+            "output": s.output,
+            "error_message": s.error_message,
+        }
+        for s in run.steps
+    ]
+    return templates.TemplateResponse(
+        request,
+        "_pipeline_steps_fragment.html",
+        {"steps": steps},
+    )

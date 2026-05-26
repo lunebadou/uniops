@@ -1,0 +1,32 @@
+{% if pipelines %}
+<div class="pipelines-grid">
+    {% for p in pipelines %}
+    <a href="/pipelines/{{ p.id }}" class="pipeline-card status-{{ p.status }}">
+        <div class="pipeline-card-header">
+            <div class="pipeline-id">#{{ p.id }}</div>
+            <span class="status-badge status-badge-{{ p.status }}">{{ p.status_label }}</span>
+        </div>
+        <div class="pipeline-app">{{ p.application_name }}</div>
+        <div class="pipeline-meta">
+            <span class="env-badge env-{{ p.environment }}">{{ p.environment }}</span>
+            <span class="muted">{{ p.git_repo }}@{{ p.git_branch }}</span>
+        </div>
+        {% if p.ai_risk_level %}
+        <div class="pipeline-risk">
+            <span class="risk-label">Risque IA :</span>
+            <span class="risk-badge risk-{{ p.ai_risk_level }}">{{ p.ai_risk_level }}</span>
+        </div>
+        {% endif %}
+        <div class="pipeline-footer">
+            <span class="muted">Démarré le {{ p.started_at_fmt }}</span>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state-large">
+    <div class="empty-icon">🚀</div>
+    <div class="empty-title">Aucun déploiement</div>
+    <div class="empty-desc">Cliquez sur « Nouveau déploiement » pour lancer votre premier pipeline.</div>
+</div>
+{% endif %}
