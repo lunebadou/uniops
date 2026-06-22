@@ -6,10 +6,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# LLM (Phase D)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-
 # Seuils détection anomalies
 ANOMALY_CPU_THRESHOLD = float(os.getenv("ANOMALY_CPU_THRESHOLD", "80.0"))
 ANOMALY_MEMORY_THRESHOLD_MB = float(os.getenv("ANOMALY_MEMORY_THRESHOLD_MB", "2000"))

@@ -82,10 +82,6 @@ class Anomaly(Base):
     threshold_value = Column(Float, nullable=True)      # ex: 80.0
     duration_points = Column(Integer, nullable=True)    # nb de mesures consécutives au-dessus
 
-    # Analyse IA (sera rempli en étape 3)
-    ai_analysis = Column(Text, nullable=True)
-    ai_analyzed_at = Column(DateTime, nullable=True)
-
     # Cycle de vie
     detected_at = Column(DateTime, default=datetime.utcnow, index=True)
     resolved = Column(Boolean, default=False)
@@ -112,12 +108,7 @@ class PipelineRun(Base):
     environment = Column(String, nullable=False)                    # "recette" ou "production"
 
     # État global
-    status = Column(Enum(PipelineStatus), nullable=False, default=PipelineStatus.pending)
-
-    # Analyse IA (rempli plus tard en étape 4)
-    ai_risk_level = Column(String, nullable=True)                   # "low", "medium", "high"
-    ai_summary = Column(Text, nullable=True)                        # résumé IA du diff
-    ai_validated = Column(Boolean, default=False)                   # IA a-t-elle approuvé ?
+    status = Column(Enum(PipelineStatus), nullable=False, default=PipelineStatus.pending)                 # IA a-t-elle approuvé ?
 
     # Validation humaine (rempli plus tard si environnement = production)
     human_validated = Column(Boolean, default=False)
