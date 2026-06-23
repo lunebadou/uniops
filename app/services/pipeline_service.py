@@ -1,7 +1,7 @@
 """
 Service d'orchestration du pipeline.
-Exécute en arrière-plan : Clone Git → Analyse Ruff → Analyse Bandit.
-(L'IA et le build Docker viendront dans les étapes suivantes.)
+Exécute en arrière-plan : Clone Git → Analyse Ruff → Analyse Bandit → Routage RCT/PROD.
+(Le build Docker viendra s'insérer ici plus tard)
 """
 import logging
 from sqlalchemy.orm import Session
@@ -51,7 +51,7 @@ def execute_pipeline(run_id: int) -> None:
             logger.error(f"[pipeline] Clone échoué : {e}")
             return
 
-        # ─── Étape 2 : Analyse Ruff ───
+        # ─── Étape 2 : Analyse Ruff (Linter) ───
         step2 = pipeline_repository.add_step(db, run_id, "Analyse Ruff (linter)", order=2)
         pipeline_repository.start_step(db, step2.id)
         ruff_report = None
@@ -69,7 +69,7 @@ def execute_pipeline(run_id: int) -> None:
             pipeline_repository.update_run_status(db, run_id, PipelineStatus.failed)
             return
 
-        # ─── Étape 3 : Analyse Bandit ───
+        # ─── Étape 3 : Analyse Bandit (Sécurité) ───
         step3 = pipeline_repository.add_step(db, run_id, "Analyse Bandit (sécurité)", order=3)
         pipeline_repository.start_step(db, step3.id)
         bandit_report = None
@@ -87,55 +87,24 @@ def execute_pipeline(run_id: int) -> None:
             pipeline_repository.update_run_status(db, run_id, PipelineStatus.failed)
             return
 
-        # ─── Étape 4 : Analyse IA ───
-        step4 = pipeline_repository.add_step(db, run_id, "Analyse IA (Gemini)", order=4)
-        pipeline_repository.start_step(db, step4.id)
-        try:
-            from app.clients.gemini_client import get_gemini_client
+        # ─── Étape 4 : Routage RCT vs PROD (Logique Souveraine) ───
+        env_cible = run.environment.lower()
+        
+        if env_cible in ["recette", "rct", "test", "dev"]:
+            logger.info(f"[pipeline] Environnement {env_cible} détecté : Auto-approbation (Continuous Deployment)")
+            pipeline_repository.update_run_status(db, run_id, PipelineStatus.success)
+            # TODO : Intégrer docker-py ici pour le déploiement
+            
+        elif env_cible in ["production", "prod"]:
+            logger.info(f"[pipeline] Environnement {env_cible} détecté : Mise en attente de validation humaine (Continuous Delivery)")
+            pipeline_repository.update_run_status(db, run_id, PipelineStatus.awaiting_validation)
+            
+        else:
+            logger.warning(f"[pipeline] Environnement inconnu ({env_cible}), mise en attente par précaution.")
+            pipeline_repository.update_run_status(db, run_id, PipelineStatus.awaiting_validation)
 
-            ruff_summary = analysis_service.format_ruff_summary(ruff_report) if ruff_report else "Pas d'analyse"
-            bandit_summary = analysis_service.format_bandit_summary(bandit_report) if bandit_report else "Pas d'analyse"
-
-            gemini = get_gemini_client()
-            ai_result = gemini.analyze_pipeline_report(
-                app_name=run.application_name,
-                environment=run.environment,
-                ruff_summary=ruff_summary,
-                bandit_summary=bandit_summary,
-            )
-
-            # Stocke les résultats IA dans le run
-            db.query(__import__("app.models", fromlist=["PipelineRun"]).PipelineRun).filter(
-                __import__("app.models", fromlist=["PipelineRun"]).PipelineRun.id == run_id
-            ).update({
-                "ai_risk_level": ai_result["risk_level"],
-                "ai_summary": ai_result["analysis_text"],
-                "ai_validated": ai_result["auto_approved"],
-            })
-            db.commit()
-
-            pipeline_repository.finish_step(
-                db, step4.id,
-                success=True,
-                output=ai_result["analysis_text"],
-            )
-
-            logger.info(f"[pipeline] IA terminée : risque={ai_result['risk_level']}, auto_approved={ai_result['auto_approved']}")
-
-            # ─── Décision de statut final ───
-            if ai_result["auto_approved"]:
-                logger.info(f"[pipeline] Auto-approbation en recette (risque low)")
-                pipeline_repository.update_run_status(db, run_id, PipelineStatus.success)
-            else:
-                logger.info(f"[pipeline] Validation humaine requise")
-                pipeline_repository.update_run_status(db, run_id, PipelineStatus.awaiting_validation)
-
-        except Exception as e:
-            pipeline_repository.finish_step(db, step4.id, success=False, error_message=str(e))
-            pipeline_repository.update_run_status(db, run_id, PipelineStatus.failed)
-            logger.error(f"[pipeline] IA échouée : {e}")
-            return
-
+    except Exception as e:
+        logger.error(f"[pipeline] Erreur critique lors de l'exécution : {e}")
+        pipeline_repository.update_run_status(db, run_id, PipelineStatus.failed)
     finally:
         db.close()
-    

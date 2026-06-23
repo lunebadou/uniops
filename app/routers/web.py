@@ -37,14 +37,12 @@ def _serialize_anomalies(items) -> list[dict]:
             "observed_value": a.observed_value,
             "threshold_value": a.threshold_value,
             "duration_points": a.duration_points,
-            "ai_analysis": a.ai_analysis,
             "detected_at_fmt": a.detected_at.strftime("%d/%m/%Y %H:%M:%S"),
             "resolved": a.resolved,
             "resolved_at_fmt": a.resolved_at.strftime("%d/%m/%Y %H:%M:%S") if a.resolved_at else None,
         }
         for a in items
     ]
-
 
 # ───── Dashboard ─────
 @router.get("/")
@@ -156,9 +154,6 @@ def _serialize_pipeline(p) -> dict:
         "environment": p.environment,
         "status": p.status.value,
         "status_label": _STATUS_LABELS.get(p.status.value, p.status.value),
-        "ai_risk_level": p.ai_risk_level,
-        "ai_summary": p.ai_summary,
-        "ai_validated": p.ai_validated,
         "human_validated": p.human_validated,
         "started_at_fmt": p.started_at.strftime("%d/%m/%Y %H:%M:%S") if p.started_at else None,
         "finished_at_fmt": p.finished_at.strftime("%d/%m/%Y %H:%M:%S") if p.finished_at else None,
@@ -174,6 +169,20 @@ def _serialize_pipeline(p) -> dict:
         ],
     }
 
+# ───── Nouvelle Page Applications (Jobs) ─────
+from app.repositories import application_repository
+
+@router.get("/applications")
+def applications_page(request: Request, db: Session = Depends(get_db)):
+    apps = application_repository.get_all(db)
+    return templates.TemplateResponse(
+        request,
+        "applications.html",
+        {
+            "applications": apps,
+            "open_anomalies": anomaly_repository.count_unresolved(db),
+        },
+    )
 
 # ───── Page Pipelines ─────
 @router.get("/pipelines")

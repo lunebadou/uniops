@@ -6,6 +6,8 @@ from app.core.templates import templates
 from app.database import get_db
 from app.repositories import pipeline_repository
 from app.services import pipeline_service
+from fastapi import Request
+from app.repositories import application_repository
 
 router = APIRouter(prefix="/pipelines", tags=["Pipelines"])
 
@@ -109,3 +111,48 @@ def trigger_pipeline(
         "_pipelines_fragment.html",
         {"pipelines": [_serialize_pipeline(r) for r in runs]},
     )
+
+@router.post("/webhook/github", status_code=202)
+async def github_webhook(
+    request: Request, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db)
+):
+    """
+    Écoute les événements Push de GitHub.
+    Si un push correspond à un Job configuré (même URL, même branche), 
+    le pipeline est déclenché automatiquement.
+    """
+    try:
+        payload = await request.json()
+    except Exception:
+        return {"message": "Payload JSON invalide"}
+
+    # 1. Vérifier si c'est bien un événement de "push" avec les données requises
+    if "ref" not in payload or "repository" not in payload:
+        return {"message": "Ignoré : événement non pris en charge"}
+
+    # 2. Extraire la branche (ex: refs/heads/main -> main) et l'URL du dépôt
+    branch = payload["ref"].split("/")[-1]
+    repo_url = payload["repository"]["clone_url"] # ex: https://github.com/lunebadou/supply-chain-app.git
+
+    # 3. Chercher dans la base s'il y a un Job configuré pour ce repo et cette branche
+    apps = application_repository.get_all(db)
+    matched_apps = [
+        app for app in apps
+        if app.repo_url.lower() == repo_url.lower() and app.branch == branch
+    ]
+
+    if not matched_apps:
+        return {"message": f"Ignoré : aucun job configuré pour {repo_url} sur la branche {branch}"}
+
+    # 4. Déclencher le pipeline pour le(s) job(s) correspondant(s)
+    triggered_runs = []
+    for app in matched_apps:
+        # Créer l'historique du run en base
+        run = repo.create_run(db, app.id)
+        # Lancer le pipeline en tâche de fond (Git clone -> Ruff -> Bandit -> Deploy)
+        background_tasks.add_task(pipeline_service.execute_pipeline, run.id)
+        triggered_runs.append(run.id)
+
+    return {"message": "Pipelines déclenchés avec succès", "run_ids": triggered_runs}

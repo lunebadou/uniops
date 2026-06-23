@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Applications & Jobs</h1>
+<p class="page-subtitle">Configurez les dépôts Git et définissez les environnements cibles de vos pipelines d'intégration.</p>
+
+<div style="display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap;">
+    
+    <div class="card" style="flex: 1; min-width: 300px; max-width: 400px;">
+        <div class="card-header" style="margin-bottom: 16px;">
+            <div class="card-title">Nouveau Job</div>
+        </div>
+        <div class="card-body">
+            <form id="createAppForm">
+                <div class="form-group">
+                    <label>Nom du projet</label>
+                    <input type="text" name="name" required placeholder="ex: supply-chain-rct">
+                </div>
+                <div class="form-group">
+                    <label>URL du Dépôt Git</label>
+                    <input type="url" name="repo_url" required placeholder="https://github.com/lunebadou/supply-chain-app.git">
+                </div>
+                <div class="form-group">
+                    <label>Branche cible</label>
+                    <input type="text" name="branch" required placeholder="main">
+                </div>
+                <div class="form-group">
+                    <label>Environnement</label>
+                    <select name="environment">
+                        <option value="Recette">Recette (Déploiement Auto)</option>
+                        <option value="Production">Production (Validation Manuelle)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Enregistrer le Job</button>
+            </form>
+        </div>
+    </div>
+
+    <div style="flex: 2; min-width: 300px;">
+        <div class="pipelines-grid">
+            {% for app in applications %}
+            <div class="card">
+                <div class="card-header" style="margin-bottom: 8px; padding-bottom: 8px;">
+                    <div class="card-title">{{ app.name }}</div>
+                    <span class="env-badge {% if app.environment|lower == 'production' %}env-production{% else %}env-recette{% endif %}">
+                        {{ app.environment }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="metric">
+                        <span class="metric-label">Dépôt</span>
+                        <span class="metric-value" style="font-size: 0.75rem;">{{ app.repo_url }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Branche</span>
+                        <span class="metric-value" style="font-size: 0.85rem;">{{ app.branch }}</span>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state-large" style="grid-column: 1 / -1;">
+                <div class="empty-icon">📂</div>
+                <div class="empty-title">Aucune application configurée</div>
+                <div class="empty-desc">Utilisez le formulaire pour créer votre premier Job.</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('createAppForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+        const response = await fetch('/applications', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if(response.ok) {
+            window.location.reload(); 
+        } else {
+            const error = await response.json();
+            alert("Erreur: " + (error.detail || "Impossible de créer le job"));
+        }
+    } catch (err) {
+        alert("Erreur de connexion au serveur.");
+    }
+});
+</script>
+{% endblock %}
