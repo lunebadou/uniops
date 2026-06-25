@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.clients.docker_client import docker_client
 from app.core.templates import templates
 from app.database import get_db
-from app.repositories import metric_repository, anomaly_repository
+from app.repositories import metric_repository, anomaly_repository, pipeline_repository, application_repository
 
 router = APIRouter(tags=["Web"])
 
@@ -27,7 +27,7 @@ def _collect_containers_with_stats() -> list[dict]:
 
 
 def _serialize_anomalies(items) -> list[dict]:
-    """Sérialise les anomalies pour le template, avec dates formatées en français."""
+    """Sérialise les anomalies pour le template, expurgé de l'IA."""
     return [
         {
             "id": a.id,
@@ -133,7 +133,6 @@ def anomaly_bell_fragment(request: Request, db: Session = Depends(get_db)):
         {"open_anomalies": anomaly_repository.count_unresolved(db)},
     )
 
-from app.repositories import pipeline_repository
 
 _STATUS_LABELS = {
     "pending": "En attente",
@@ -146,6 +145,7 @@ _STATUS_LABELS = {
 
 
 def _serialize_pipeline(p) -> dict:
+    """Sérialise les pipelines pour le template, expurgé de l'IA."""
     return {
         "id": p.id,
         "application_name": p.application_name,
@@ -222,6 +222,7 @@ def pipeline_detail_page(run_id: int, request: Request, db: Session = Depends(ge
         },
     )
 
+
 @router.get("/pipelines/{run_id}/steps-fragment")
 def pipeline_steps_fragment(run_id: int, request: Request, db: Session = Depends(get_db)):
     run = pipeline_repository.get_run(db, run_id)
@@ -242,4 +243,17 @@ def pipeline_steps_fragment(run_id: int, request: Request, db: Session = Depends
         request,
         "_pipeline_steps_fragment.html",
         {"steps": steps},
+    )
+
+# ───── Page Applications (Jobs) ─────
+@router.get("/jobs")
+def applications_page(request: Request, db: Session = Depends(get_db)):
+    apps = application_repository.get_all(db)
+    return templates.TemplateResponse(
+        request,
+        "applications.html",
+        {
+            "applications": apps,
+            "open_anomalies": anomaly_repository.count_unresolved(db),
+        },
     )
