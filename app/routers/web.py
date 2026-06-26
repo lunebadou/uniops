@@ -169,21 +169,6 @@ def _serialize_pipeline(p) -> dict:
         ],
     }
 
-# ───── Nouvelle Page Applications (Jobs) ─────
-from app.repositories import application_repository
-
-@router.get("/applications")
-def applications_page(request: Request, db: Session = Depends(get_db)):
-    apps = application_repository.get_all(db)
-    return templates.TemplateResponse(
-        request,
-        "applications.html",
-        {
-            "applications": apps,
-            "open_anomalies": anomaly_repository.count_unresolved(db),
-        },
-    )
-
 # ───── Page Pipelines ─────
 @router.get("/pipelines")
 def pipelines_page(request: Request, db: Session = Depends(get_db)):

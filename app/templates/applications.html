@@ -1,95 +1,135 @@
 {% extends "base.html" %}
 
-{% block content %}
-<h1>Applications & Jobs</h1>
-<p class="page-subtitle">Configurez les dépôts Git et définissez les environnements cibles de vos pipelines d'intégration.</p>
+{% block title %}Applications & Jobs — UniOps{% endblock %}
 
-<div style="display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap;">
-    
-    <div class="card" style="flex: 1; min-width: 300px; max-width: 400px;">
-        <div class="card-header" style="margin-bottom: 16px;">
-            <div class="card-title">Nouveau Job</div>
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Applications & Jobs</h1>
+            <p class="page-subtitle">Configuration des dépôts GitHub surveillés pour le déploiement continu.</p>
         </div>
-        <div class="card-body">
-            <form id="createAppForm">
+    </div>
+
+    <div class="pipeline-detail-grid">
+        <!-- Colonne 1 : Formulaire de création -->
+        <div class="detail-block">
+            <div class="detail-block-title">Créer un nouveau Job</div>
+            <form id="createAppForm" style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+                
                 <div class="form-group">
-                    <label>Nom du projet</label>
-                    <input type="text" name="name" required placeholder="ex: supply-chain-rct">
+                    <label class="muted" style="display: block; margin-bottom: 5px;">Nom de l'application</label>
+                    <input type="text" name="name" required placeholder="ex: supply-chain-rct" 
+                           style="width: 100%; padding: 10px; border-radius: 6px; background: #1e293b; border: 1px solid #334155; color: white;">
                 </div>
+                
                 <div class="form-group">
-                    <label>URL du Dépôt Git</label>
-                    <input type="url" name="repo_url" required placeholder="https://github.com/lunebadou/supply-chain-app.git">
+                    <label class="muted" style="display: block; margin-bottom: 5px;">URL du Dépôt Git</label>
+                    <input type="url" name="git_repo" required placeholder="https://github.com/lunebadou/supply-chain-app.git" 
+                           style="width: 100%; padding: 10px; border-radius: 6px; background: #1e293b; border: 1px solid #334155; color: white;">
                 </div>
+                
                 <div class="form-group">
-                    <label>Branche cible</label>
-                    <input type="text" name="branch" required placeholder="main">
+                    <label class="muted" style="display: block; margin-bottom: 5px;">Branche cible</label>
+                    <input type="text" name="git_branch" required placeholder="main" value="main" 
+                           style="width: 100%; padding: 10px; border-radius: 6px; background: #1e293b; border: 1px solid #334155; color: white;">
                 </div>
+
                 <div class="form-group">
-                    <label>Environnement</label>
-                    <select name="environment">
-                        <option value="Recette">Recette (Déploiement Auto)</option>
-                        <option value="Production">Production (Validation Manuelle)</option>
+                    <label class="muted" style="display: block; margin-bottom: 5px;">Environnement</label>
+                    <select name="environment" 
+                            style="width: 100%; padding: 10px; border-radius: 6px; background: #1e293b; border: 1px solid #334155; color: white;">
+                        <option value="Recette">Recette</option>
+                        <option value="Production">Production</option>
+                        <option value="Test">Test</option>
                     </select>
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Enregistrer le Job</button>
+
+                <button id="submitAppBtn" type="submit" 
+                        style="background: #10b981; color: white; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: background 0.3s;">
+                    + Enregistrer le Job
+                </button>
+                <div id="formFeedback" class="muted" style="min-height: 1.2em; font-size: 0.95rem;"></div>
             </form>
         </div>
-    </div>
 
-    <div style="flex: 2; min-width: 300px;">
-        <div class="pipelines-grid">
-            {% for app in applications %}
-            <div class="card">
-                <div class="card-header" style="margin-bottom: 8px; padding-bottom: 8px;">
-                    <div class="card-title">{{ app.name }}</div>
-                    <span class="env-badge {% if app.environment|lower == 'production' %}env-production{% else %}env-recette{% endif %}">
-                        {{ app.environment }}
-                    </span>
-                </div>
-                <div class="card-body">
-                    <div class="metric">
-                        <span class="metric-label">Dépôt</span>
-                        <span class="metric-value" style="font-size: 0.75rem;">{{ app.repo_url }}</span>
+        <!-- Colonne 2 : Liste des Jobs existants -->
+        <div class="detail-block">
+            <div class="detail-block-title">Jobs configurés</div>
+            
+            {% if applications %}
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+                {% for app in applications %}
+                    <div style="background: #1e293b; border: 1px solid #334155; border-radius: 8px; overflow: hidden;">
+                        
+                        <!-- En-tête de la carte -->
+                        <div style="background: #0f172a; padding: 12px 15px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; font-size: 1.1rem; color: #f8fafc;">{{ app.name }}</h3>
+                            <span class="env-badge env-{{ (app.environment or '') | lower | replace(' ', '-') }}">{{ app.environment }}</span>
+                        </div>
+                        
+                        <!-- Corps de la carte -->
+                        <div style="padding: 15px;">
+                            <div class="detail-row" style="margin-bottom: 10px;">
+                                <span class="muted" style="min-width: 60px;">Dépôt</span>
+                                <span class="mono" style="font-size: 0.85rem; color: #cbd5e1; word-break: break-all;">{{ app.git_repo }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="muted" style="min-width: 60px;">Branche</span>
+                                <span class="mono" style="color: #cbd5e1;">{{ app.git_branch }}</span>
+                            </div>
+                        </div>
+                        
                     </div>
-                    <div class="metric">
-                        <span class="metric-label">Branche</span>
-                        <span class="metric-value" style="font-size: 0.85rem;">{{ app.branch }}</span>
-                    </div>
+                {% endfor %}
                 </div>
-            </div>
             {% else %}
-            <div class="empty-state-large" style="grid-column: 1 / -1;">
-                <div class="empty-icon">📂</div>
-                <div class="empty-title">Aucune application configurée</div>
-                <div class="empty-desc">Utilisez le formulaire pour créer votre premier Job.</div>
-            </div>
-            {% endfor %}
+                <div class="empty-state-small" style="margin-top: 20px; padding: 30px; text-align: center; border: 1px dashed #334155; border-radius: 8px;">
+                    Aucune application n'est encore configurée en base de données.
+                </div>
+            {% endif %}
         </div>
     </div>
-</div>
 
-<script>
-document.getElementById('createAppForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData.entries());
-    
-    try {
-        const response = await fetch('/applications', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        
-        if(response.ok) {
-            window.location.reload(); 
-        } else {
-            const error = await response.json();
-            alert("Erreur: " + (error.detail || "Impossible de créer le job"));
+    <!-- Script de soumission pour communiquer avec l'API FastAPI -->
+    <script>
+    const form = document.getElementById('createAppForm');
+    const feedback = document.getElementById('formFeedback');
+    const submitBtn = document.getElementById('submitAppBtn');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
+
+        feedback.textContent = 'Enregistrement en cours…';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Enregistrement…';
+
+        try {
+            const response = await fetch('/applications', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const payload = await response.json().catch(() => ({}));
+
+            if (response.ok) {
+                feedback.textContent = 'Job enregistré avec succès.';
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                feedback.textContent = payload.detail || 'Erreur lors de la sauvegarde.';
+            }
+        } catch (error) {
+            console.error('Erreur de communication API:', error);
+            feedback.textContent = 'Erreur réseau : Impossible de joindre le serveur.';
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '+ Enregistrer le Job';
         }
-    } catch (err) {
-        alert("Erreur de connexion au serveur.");
-    }
-});
-</script>
+    });
+    </script>
 {% endblock %}

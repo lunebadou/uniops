@@ -29,6 +29,15 @@ class AnomalySeverity(str, enum.Enum):
     critical = "critical"
 
 
+class PipelineStatus(str, enum.Enum):
+    pending = "pending"
+    running = "running"
+    success = "success"
+    failed = "failed"
+    awaiting_validation = "awaiting_validation"
+    rejected = "rejected"
+
+
 class Application(Base):
     __tablename__ = "applications"
 
@@ -36,22 +45,21 @@ class Application(Base):
     name = Column(String, nullable=False, unique=True)
     description = Column(String, nullable=True)
     git_repo = Column(String, nullable=True)
+    git_branch = Column(String, nullable=False, default="main")
+    environment = Column(String, nullable=False, default="Recette")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     environments = relationship("Environment", back_populates="application", cascade="all, delete-orphan")
+    pipeline_runs = relationship("PipelineRun", back_populates="application", cascade="all, delete-orphan")
 
 
 class Environment(Base):
     __tablename__ = "environments"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    type = Column(Enum(EnvironmentType), nullable=False)
-    os_type = Column(Enum(OSType), nullable=False)
-    host = Column(String, nullable=False)
-    port = Column(Integer, nullable=False, default=8000)
-    prometheus_url = Column(String, nullable=True)
     application_id = Column(Integer, ForeignKey("applications.id"), nullable=False)
+    name = Column(String, nullable=False)
+    target = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     application = relationship("Application", back_populates="environments")
@@ -75,67 +83,44 @@ class Anomaly(Base):
     id = Column(Integer, primary_key=True, index=True)
     container_name = Column(String, nullable=False, index=True)
     type = Column(Enum(AnomalyType), nullable=False)
-    severity = Column(Enum(AnomalySeverity), nullable=False, default=AnomalySeverity.warning)
-
-    # Contexte de l'anomalie
-    observed_value = Column(Float, nullable=True)       # ex: 92.5 (% CPU)
-    threshold_value = Column(Float, nullable=True)      # ex: 80.0
-    duration_points = Column(Integer, nullable=True)    # nb de mesures consécutives au-dessus
-
-    # Cycle de vie
-    detected_at = Column(DateTime, default=datetime.utcnow, index=True)
+    severity = Column(Enum(AnomalySeverity), nullable=False)
+    observed_value = Column(Float, nullable=True)
+    threshold_value = Column(Float, nullable=True)
+    duration_points = Column(Integer, nullable=True)
     resolved = Column(Boolean, default=False)
+    detected_at = Column(DateTime, default=datetime.utcnow, index=True)
     resolved_at = Column(DateTime, nullable=True)
-
-class PipelineStatus(str, enum.Enum):
-    pending = "pending"
-    running = "running"
-    success = "success"
-    failed = "failed"
-    awaiting_validation = "awaiting_validation"
-    rejected = "rejected"
 
 
 class PipelineRun(Base):
     __tablename__ = "pipeline_runs"
 
     id = Column(Integer, primary_key=True, index=True)
-
-    # Cible du déploiement
-    application_name = Column(String, nullable=False, index=True)   # ex: "supply-chain-app"
-    git_repo = Column(String, nullable=False)                       # ex: "lunebadou/supply-chain-app"
+    application_name = Column(String, nullable=False)
+    git_repo = Column(String, nullable=False)
     git_branch = Column(String, nullable=False, default="main")
-    environment = Column(String, nullable=False)                    # "recette" ou "production"
-
-    # État global
-    status = Column(Enum(PipelineStatus), nullable=False, default=PipelineStatus.pending)                 # IA a-t-elle approuvé ?
-
-    # Validation humaine (rempli plus tard si environnement = production)
+    environment = Column(String, nullable=False, default="Recette")
+    status = Column(Enum(PipelineStatus), nullable=False, default=PipelineStatus.pending)
     human_validated = Column(Boolean, default=False)
-    human_validated_by = Column(String, nullable=True)              # "admin" pour l'instant
-
-    # Cycle de vie
-    started_at = Column(DateTime, default=datetime.utcnow, index=True)
+    human_validated_by = Column(String, nullable=True)
+    started_at = Column(DateTime, default=datetime.utcnow)
     finished_at = Column(DateTime, nullable=True)
 
-    # Relation avec les étapes
-    steps = relationship("PipelineStep", back_populates="run", cascade="all, delete-orphan", order_by="PipelineStep.order")
+    application_id = Column(Integer, ForeignKey("applications.id"), nullable=True)
+    application = relationship("Application", back_populates="pipeline_runs")
+    steps = relationship("PipelineStep", back_populates="run", cascade="all, delete-orphan")
 
 
 class PipelineStep(Base):
     __tablename__ = "pipeline_steps"
 
     id = Column(Integer, primary_key=True, index=True)
-    run_id = Column(Integer, ForeignKey("pipeline_runs.id"), nullable=False, index=True)
-
-    name = Column(String, nullable=False)              # ex: "Clone Git", "Analyse Ruff", "Build Docker"
-    order = Column(Integer, nullable=False)            # position dans le pipeline (1, 2, 3...)
+    run_id = Column(Integer, ForeignKey("pipeline_runs.id"), nullable=False)
+    name = Column(String, nullable=False)
+    order = Column(Integer, nullable=False, default=0)
     status = Column(Enum(PipelineStatus), nullable=False, default=PipelineStatus.pending)
-
-    # Sortie de l'étape (stdout/stderr, rapports JSON, etc.)
     output = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
-
     started_at = Column(DateTime, nullable=True)
     finished_at = Column(DateTime, nullable=True)
 
