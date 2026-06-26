@@ -12,11 +12,9 @@
             <h1>Pipeline #{{ pipeline.id }}</h1>
             <p class="page-subtitle">{{ pipeline.application_name }} → {{ pipeline.environment }}</p>
         </div>
-        <span class="status-badge status-badge-{{ pipeline.status }}">{{ pipeline.status_label }}</span>
     </div>
 
     <div class="pipeline-detail-grid">
-        <!-- Bloc info -->
         <div class="detail-block">
             <div class="detail-block-title">Configuration</div>
             <div class="detail-row"><span class="muted">Application</span><span>{{ pipeline.application_name }}</span></div>
@@ -29,7 +27,6 @@
             {% endif %}
         </div>
 
-        <!-- Bloc analyse IA -->
         <div class="detail-block">
             <div class="detail-block-title">Analyse IA</div>
             {% if pipeline.ai_summary %}
@@ -41,36 +38,8 @@
         </div>
     </div>
 
-    <!-- Étapes -->
     <h2 class="section-title">Étapes du pipeline</h2>
 
-    <div id="pipeline-steps-block"
-         hx-get="/pipelines/{{ pipeline.id }}/steps-fragment"
-         hx-trigger="every 3s"
-         hx-swap="innerHTML">
-
-    {% if pipeline.steps %}
-    <div class="steps-list">
-        {% for s in pipeline.steps %}
-        <div class="step-card step-{{ s.status }}">
-            <div class="step-number">{{ s.order }}</div>
-            <div class="step-content">
-                <div class="step-name">{{ s.name }}</div>
-                <div class="step-status status-badge-{{ s.status }}">{{ s.status }}</div>
-                {% if s.output %}
-                <pre class="step-output">{{ s.output }}</pre>
-                {% endif %}
-                {% if s.error_message %}
-                <div class="step-error">{{ s.error_message }}</div>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty-state-small">Aucune étape n'a encore été enregistrée pour ce pipeline.</div>
-    {% endif %}
-
-    </div>
+    {% include "fragments/pipeline_steps.html" %}
     
 {% endblock %}

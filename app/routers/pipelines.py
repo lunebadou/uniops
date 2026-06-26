@@ -1,16 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-
 from app.core.templates import templates
 from app.database import get_db
-from app.repositories import pipeline_repository
+from app.repositories import pipeline_repository, application_repository
 from app.services import pipeline_service
-from fastapi import Request
-from app.repositories import application_repository
 
 router = APIRouter(prefix="/pipelines", tags=["Pipelines"])
-
 
 class PipelineRunCreate(BaseModel):
     application_name: str
@@ -18,6 +14,14 @@ class PipelineRunCreate(BaseModel):
     git_branch: str = "main"
     environment: str
 
+_STATUS_LABELS = {
+    "pending": "En attente",
+    "running": "En cours",
+    "success": "Succès",
+    "failed": "Échec",
+    "awaiting_validation": "Validation requise",
+    "rejected": "Refusé",
+}
 
 def _serialize_step(s) -> dict:
     return {
@@ -31,8 +35,8 @@ def _serialize_step(s) -> dict:
         "finished_at": s.finished_at.isoformat() if s.finished_at else None,
     }
 
-
 def _serialize_run(r) -> dict:
+    """Sérialisation expurgée de l'IA pour l'API pure (JSON)"""
     return {
         "id": r.id,
         "application_name": r.application_name,
@@ -40,14 +44,37 @@ def _serialize_run(r) -> dict:
         "git_branch": r.git_branch,
         "environment": r.environment,
         "status": r.status.value,
-        "ai_risk_level": r.ai_risk_level,
-        "ai_summary": r.ai_summary,
-        "ai_validated": r.ai_validated,
         "human_validated": r.human_validated,
         "human_validated_by": r.human_validated_by,
         "started_at": r.started_at.isoformat() if r.started_at else None,
         "finished_at": r.finished_at.isoformat() if r.finished_at else None,
         "steps": [_serialize_step(s) for s in r.steps],
+    }
+
+def _serialize_pipeline_for_web(p) -> dict:
+    """Sérialisation formatée pour l'interface HTMX"""
+    return {
+        "id": p.id,
+        "application_name": p.application_name,
+        "git_repo": p.git_repo,
+        "git_branch": p.git_branch,
+        "environment": p.environment,
+        "status": p.status.value,
+        "status_label": _STATUS_LABELS.get(p.status.value, p.status.value),
+        "human_validated": p.human_validated,
+        "started_at_fmt": p.started_at.strftime("%d/%m/%Y %H:%M:%S") if p.started_at else None,
+        "finished_at_fmt": p.finished_at.strftime("%d/%m/%Y %H:%M:%S") if p.finished_at else None,
+        "steps": [
+            {
+                "id": s.id,
+                "name": s.name,
+                "order": s.order,
+                "status": s.status.value,
+                "output": s.output,           # <- Ajout vital pour afficher les logs !
+                "error_message": s.error_message,
+            }
+            for s in p.steps
+        ],
     }
 
 
@@ -71,7 +98,6 @@ def create_pipeline(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    """Crée un PipelineRun et lance son exécution en arrière-plan."""
     run = pipeline_repository.create_run(
         db,
         application_name=payload.application_name,
@@ -93,7 +119,6 @@ def trigger_pipeline(
     environment: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    """Endpoint HTMX appelé depuis le formulaire modal. Crée + exécute en arrière-plan."""
     run = pipeline_repository.create_run(
         db,
         application_name=application_name,
@@ -103,13 +128,72 @@ def trigger_pipeline(
     )
     background_tasks.add_task(pipeline_service.execute_pipeline, run.id)
 
-    # Renvoie la liste mise à jour
-    from app.routers.web import _serialize_pipeline
     runs = pipeline_repository.list_runs(db)
     return templates.TemplateResponse(
         request,
         "_pipelines_fragment.html",
-        {"pipelines": [_serialize_pipeline(r) for r in runs]},
+        {"pipelines": [_serialize_pipeline_for_web(r) for r in runs]},
+    )
+
+
+@router.post("/webhook/github", status_code=202)
+async def github_webhook(
+    request: Request, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db)
+):
+    try:
+        payload = await request.json()
+    except Exception:
+        return {"message": "Payload JSON invalide"}
+
+    if "ref" not in payload or "repository" not in payload:
+        return {"message": "Ignoré : événement non pris en charge"}
+
+    branch = payload["ref"].split("/")[-1]
+    repo_url = payload["repository"]["clone_url"]
+
+    apps = application_repository.get_all(db)
+    
+    # Nettoyage des URLs (espaces et suffixe .git) pour garantir la correspondance
+    payload_repo_clean = repo_url.strip().lower().removesuffix(".git")
+
+    matched_apps = [
+        app for app in apps
+        if (getattr(app, "git_repo") or "").strip().lower().removesuffix(".git") == payload_repo_clean 
+        and (getattr(app, "git_branch") or "main") == branch
+    ]
+
+    if not matched_apps:
+        return {"message": f"Ignoré : aucun job configuré pour {repo_url} sur la branche {branch}"}
+
+    triggered_runs = []
+    for app in matched_apps:
+        run = pipeline_repository.create_run(
+            db,
+            application_name=app.name,
+            git_repo=getattr(app, "git_repo") or "",
+            git_branch=getattr(app, "git_branch") or "main",
+            environment=getattr(app, "environment") or "Recette",
+        )
+        background_tasks.add_task(pipeline_service.execute_pipeline, run.id)
+        triggered_runs.append(run.id)
+
+    return {"message": "Pipelines déclenchés avec succès", "run_ids": triggered_runs}
+
+
+@router.get("/{run_id}/status", response_class=HTMLResponse)
+def get_pipeline_status(run_id: int, request: Request, db: Session = Depends(get_db)):
+    """Route appelée par HTMX toutes les 2 secondes pour rafraîchir l'interface."""
+    run = pipeline_repository.get_run(db, run_id)
+    if not run:
+        return HTMLResponse("Pipeline introuvable", status_code=404)
+    
+    pipeline_data = _serialize_pipeline_for_web(run)
+    
+    return templates.TemplateResponse(
+        "fragments/pipeline_steps.html", 
+        {"request": request, "pipeline": pipeline_data}
     )
 
 @router.post("/webhook/github", status_code=202)

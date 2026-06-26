@@ -1,0 +1,46 @@
+<div id="pipeline-steps-block"
+     {% if pipeline.status in ['pending', 'running'] %}
+     hx-get="/pipelines/{{ pipeline.id }}/status"
+     hx-trigger="every 2s"
+     hx-swap="outerHTML"
+     {% endif %}>
+
+    <div style="margin-bottom: 20px;">
+        <span class="status-badge status-badge-{{ pipeline.status }}">
+            Statut actuel : {{ pipeline.status_label | default(pipeline.status) }}
+            {% if pipeline.status == 'running' %} ⚙️
+            {% elif pipeline.status == 'success' %} ✅
+            {% elif pipeline.status == 'failed' %} ❌
+            {% endif %}
+        </span>
+    </div>
+
+    {% if pipeline.steps %}
+    <div class="steps-list">
+        {% for s in pipeline.steps %}
+        <div class="step-card step-{{ s.status }}">
+            <div class="step-number">{{ s.order }}</div>
+            <div class="step-content">
+                <div class="step-name">{{ s.name }}</div>
+                <div class="step-status status-badge-{{ s.status }}">
+                    {% if s.status == 'running' %} En cours 🔄
+                    {% elif s.status == 'success' %} Validé ✔️
+                    {% elif s.status == 'failed' %} Échec ✖️
+                    {% else %} {{ s.status }}
+                    {% endif %}
+                </div>
+                {% if s.output %}
+                <pre class="step-output">{{ s.output }}</pre>
+                {% endif %}
+                {% if s.error_message %}
+                <div class="step-error">{{ s.error_message }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state-small">L'orchestrateur prépare les étapes d'exécution...</div>
+    {% endif %}
+
+</div>

@@ -245,8 +245,9 @@ def pipeline_steps_fragment(run_id: int, request: Request, db: Session = Depends
         {"steps": steps},
     )
 
+
 # ───── Page Applications (Jobs) ─────
-@router.get("/jobs")
+@router.get("/applications")
 def applications_page(request: Request, db: Session = Depends(get_db)):
     apps = application_repository.get_all(db)
     return templates.TemplateResponse(
@@ -254,6 +255,18 @@ def applications_page(request: Request, db: Session = Depends(get_db)):
         "applications.html",
         {
             "applications": apps,
+            "open_anomalies": anomaly_repository.count_unresolved(db),
+        },
+    )
+
+
+# ───── Page Monitoring ─────
+@router.get("/monitoring")
+def monitoring_page(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request,
+        "monitoring.html",
+        {
             "open_anomalies": anomaly_repository.count_unresolved(db),
         },
     )
